@@ -11,6 +11,7 @@ The project currently covers:
 - Phase 0: system design and requirements
 - Phase 1: FastAPI project foundation
 - Phase 2: database and configuration setup
+- Phase 3: user management and JWT authentication
 
 ## Tech Stack
 
@@ -19,6 +20,8 @@ The project currently covers:
 - Pydantic Settings for typed environment configuration
 - SQLAlchemy for database connection and ORM foundation
 - PostgreSQL as the database
+- Passlib and bcrypt for password hashing
+- PyJWT for access tokens
 
 ## Project Structure
 
@@ -28,7 +31,8 @@ stayease-api/
 │   ├── main.py
 │   ├── core/
 │   │   ├── config.py
-│   │   └── database.py
+│   │   ├── database.py
+│   │   └── security.py
 │   ├── models/
 │   ├── schemas/
 │   ├── routers/
@@ -51,6 +55,7 @@ app/main.py                 Main application class / controllers entrypoint
 .env                        application.properties / application.yml
 app/core/config.py          @ConfigurationProperties
 app/core/database.py        DataSource / EntityManager setup
+app/core/security.py        PasswordEncoder / JWT utility
 routers/                    @RestController classes
 services/                   @Service classes
 models/                     @Entity classes
@@ -69,9 +74,13 @@ DATABASE_URL=postgresql://postgres:password@localhost:5432/stayease_db
 APP_NAME=StayEase API
 APP_VERSION=1.0.0
 APP_DEBUG=True
+SECRET_KEY=change-this-secret-key-in-production
+ACCESS_TOKEN_EXPIRE_MINUTES=60
 ```
 
 `APP_DEBUG` is used instead of `DEBUG` to avoid collisions with existing system environment variables.
+
+If your database password contains special URL characters, encode them. For example, `@` becomes `%40`.
 
 ## Install Dependencies
 
@@ -114,11 +123,62 @@ http://127.0.0.1:8000/docs
 GET /
 GET /health
 GET /health/database
+POST /auth/register
+POST /auth/login
+GET /users/me
 ```
 
 `GET /health/database` runs a simple `SELECT 1` query to confirm that PostgreSQL is reachable.
 
 If PostgreSQL is not running or the database credentials are wrong, this endpoint returns `503 Service Unavailable`.
+
+## User Authentication
+
+Phase 3 adds user registration, login, password hashing, JWT authentication, and a protected current-user endpoint.
+
+### Register
+
+```bash
+curl -X POST http://127.0.0.1:8000/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "first_name": "Meshack",
+    "last_name": "Mushi",
+    "email": "meshack@example.com",
+    "password": "password123"
+  }'
+```
+
+The API stores a hashed password. It does not return the password in the response.
+
+### Login
+
+```bash
+curl -X POST http://127.0.0.1:8000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "meshack@example.com",
+    "password": "password123"
+  }'
+```
+
+Response:
+
+```json
+{
+  "access_token": "your.jwt.token",
+  "token_type": "bearer"
+}
+```
+
+### Get Current User
+
+Use the token from login:
+
+```bash
+curl http://127.0.0.1:8000/users/me \
+  -H "Authorization: Bearer your.jwt.token"
+```
 
 ## PostgreSQL Setup
 
@@ -156,13 +216,34 @@ make check    compile-checks the app package
 
 `get_db()` is a FastAPI dependency. It gives a route a database session and closes it when the request is finished. In Spring Boot, much of this session lifecycle is handled automatically.
 
+## Phase 3 Learning Notes
+
+`app/models/user.py` defines the SQLAlchemy `User` model. This is similar to a Spring Boot `@Entity`.
+
+`app/schemas/user.py` and `app/schemas/auth.py` define request and response schemas. These are similar to DTOs.
+
+`app/services/user_service.py` contains user database logic such as creating a user and checking login credentials.
+
+`app/core/security.py` handles password hashing and JWT tokens. This is similar to a small `PasswordEncoder` plus JWT utility.
+
+`app/dependencies/auth.py` contains `get_current_user()`. This is a route guard: it reads the bearer token, decodes it, loads the user, and rejects the request if the token is invalid.
+
+The protected route flow is:
+
+```text
+Request with Authorization header
+-> OAuth2PasswordBearer extracts token
+-> get_current_user decodes JWT
+-> user is loaded from PostgreSQL
+-> route receives current_user
+```
+
 ## Next Phase
 
-Phase 3 will add user management:
+Phase 4 will add property management:
 
-- User model
-- Register endpoint
-- Login endpoint
-- Password hashing
-- JWT authentication
-- `GET /users/me`
+- Property model
+- Property schemas
+- Property service
+- Property CRUD routes
+- Admin-only protection later in Phase 8
