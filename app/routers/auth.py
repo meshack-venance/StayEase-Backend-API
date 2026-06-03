@@ -9,7 +9,7 @@ from app.schemas.response import APIResponse, api_response
 from app.schemas.user import UserCreate, UserResponse
 from app.services.user_service import authenticate_user, create_user, get_user_by_email
 
-router = APIRouter(prefix="/auth", tags=["Authentication"])
+router = APIRouter(prefix="/api/v1/auth", tags=["Authentication"])
 
 
 @router.post(

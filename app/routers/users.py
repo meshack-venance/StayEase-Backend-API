@@ -5,7 +5,7 @@ from app.models.user import User
 from app.schemas.response import APIResponse, api_response
 from app.schemas.user import UserResponse
 
-router = APIRouter(prefix="/users", tags=["Users"])
+router = APIRouter(prefix="/api/v1/users", tags=["Users"])
 
 
 @router.get(
