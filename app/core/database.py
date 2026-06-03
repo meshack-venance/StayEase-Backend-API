@@ -20,6 +20,7 @@ class Base(DeclarativeBase):
 
 
 def get_db() -> Generator[Session, None, None]:
+    # One SQLAlchemy session is created per request and closed after the route finishes.
     db = SessionLocal()
     try:
         yield db

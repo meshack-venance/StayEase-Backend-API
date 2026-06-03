@@ -15,6 +15,7 @@ from app.routers import auth, users
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     try:
+        # Learning shortcut: create tables on startup. Real projects usually use Alembic migrations.
         Base.metadata.create_all(bind=engine)
     except SQLAlchemyError as exc:
         print(f"Database initialization skipped: {exc}")

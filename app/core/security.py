@@ -21,6 +21,7 @@ def create_access_token(subject: str) -> str:
     expires_at = datetime.now(UTC) + timedelta(
         minutes=settings.access_token_expire_minutes
     )
+    # "sub" is the standard JWT subject claim; here it stores the user id.
     payload = {
         "sub": subject,
         "exp": expires_at,
