@@ -1,13 +1,15 @@
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, status
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import Base, engine, get_db
+from app.core.exception_handlers import register_exception_handlers
+from app.core.exceptions import StayEaseException
 from app.models import user
 from app.routers import auth, users
 
@@ -28,6 +30,8 @@ app = FastAPI(
     debug=settings.app_debug,
     lifespan=lifespan,
 )
+
+register_exception_handlers(app)
 
 app.include_router(auth.router)
 app.include_router(users.router)
@@ -52,9 +56,9 @@ def database_health_check(db: Session = Depends(get_db)):
     try:
         db.execute(text("SELECT 1"))
     except SQLAlchemyError as exc:
-        raise HTTPException(
+        raise StayEaseException(
+            message="Database is not reachable",
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database is not reachable",
         ) from exc
 
     return {

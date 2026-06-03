@@ -1,11 +1,12 @@
 from typing import Annotated
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.exceptions import StayEaseException
 from app.core.security import decode_access_token
 from app.models.user import User
 from app.services.user_service import get_user_by_id
@@ -19,9 +20,9 @@ def get_current_user(
     db: Annotated[Session, Depends(get_db)],
 ) -> User:
     # Route guard: decode the bearer token, load the user, or reject the request.
-    credentials_exception = HTTPException(
+    credentials_exception = StayEaseException(
+        message="Could not validate credentials",
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
 
