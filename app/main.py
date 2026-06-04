@@ -7,7 +7,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.exceptions import StayEaseException
 from app.core.exceptions.handlers import register_exception_handlers
-from app.routers import auth, properties, users
+from app.routers import auth, properties, rooms, users
 
 
 app = FastAPI(
@@ -21,6 +21,8 @@ register_exception_handlers(app)
 
 app.include_router(auth.router)
 app.include_router(properties.router)
+app.include_router(rooms.router)
+app.include_router(rooms.property_rooms_router)
 app.include_router(users.router)
 
 
