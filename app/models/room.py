@@ -38,3 +38,5 @@ class Room(Base):
     )
 
     property: Mapped["Property"] = relationship(back_populates="rooms")
+    # One room can have many bookings over time.
+    bookings: Mapped[list["Booking"]] = relationship(back_populates="room")

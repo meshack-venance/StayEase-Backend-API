@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import StrEnum
 
 from sqlalchemy import DateTime, Enum, String, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 from app.models.common import RecordStatus
@@ -40,3 +40,5 @@ class User(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+    # One user can create many bookings.
+    bookings: Mapped[list["Booking"]] = relationship(back_populates="user")
