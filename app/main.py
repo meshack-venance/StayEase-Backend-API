@@ -10,7 +10,7 @@ from app.core.config import settings
 from app.core.database import Base, engine, get_db
 from app.core.exception_handlers import register_exception_handlers
 from app.core.exceptions import StayEaseException
-from app.models import user
+from app.models import property, user
 from app.routers import auth, users
 
 
