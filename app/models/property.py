@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import DateTime, Enum, Numeric, String, Text, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 from app.models.common import RecordStatus
@@ -35,4 +35,9 @@ class Property(Base):
         DateTime(timezone=True),
         server_default=func.now(),
         onupdate=func.now(),
+    )
+    # One property can have many rooms; Room owns the foreign key.
+    rooms: Mapped[list["Room"]] = relationship(
+        back_populates="property",
+        cascade="all, delete-orphan",
     )

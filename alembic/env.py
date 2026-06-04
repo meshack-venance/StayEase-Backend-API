@@ -17,7 +17,7 @@ if config.config_file_name is not None:
 # Import model modules so SQLAlchemy registers their tables in Base.metadata.
 from app.core.config import settings
 from app.core.database import Base
-from app.models import property, user
+from app.models import property, room, user
 
 target_metadata = Base.metadata
 
