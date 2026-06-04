@@ -1,13 +1,13 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
+from app.models.common import RecordStatus
 from app.models.user import UserRole
 
 
 class UserCreate(BaseModel):
-   
     first_name: str = Field(
         min_length=2,
         max_length=100,
@@ -33,14 +33,20 @@ class UserCreate(BaseModel):
 
 
 class UserResponse(BaseModel):
-  
+    model_config = ConfigDict(from_attributes=True)
+
     id: int = Field(description="Unique user id.", examples=[1])
     first_name: str = Field(description="User first name.", examples=["Meshack"])
     last_name: str = Field(description="User last name.", examples=["Venance"])
     email: EmailStr = Field(description="User email address.", examples=["meshack@example.com"])
     role: UserRole = Field(description="User role in the system.", examples=["CUSTOMER"])
+    status: RecordStatus = Field(description="Current user account status.", examples=["ACTIVE"])
     created_at: datetime = Field(
         description="Date and time when the user account was created.",
+        examples=["2026-06-03T12:00:00Z"],
+    )
+    updated_at: datetime = Field(
+        description="Date and time when the user account was last updated.",
         examples=["2026-06-03T12:00:00Z"],
     )
 

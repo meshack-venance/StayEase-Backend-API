@@ -4,6 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.models.common import RecordStatus
+
 
 class PropertyCreate(BaseModel):
     name: str = Field(
@@ -71,7 +73,9 @@ class PropertyResponse(BaseModel):
     description: str = Field(description="Detailed description shown to customers.")
     location: str = Field(description="Human-readable property location.")
     rating: Decimal = Field(description="Property rating from 0.0 to 5.0.")
+    status: RecordStatus = Field(description="Current property status.")
     created_at: datetime = Field(description="Date and time when the property was created.")
+    updated_at: datetime = Field(description="Date and time when the property was last updated.")
 
 
 class PropertyCreateResponse(BaseModel):
