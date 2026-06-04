@@ -1,9 +1,14 @@
-from fastapi import APIRouter, Depends, status
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.dependencies.auth import require_admin
+from app.dependencies.pagination import get_pagination_params
+from app.models.common import RecordStatus
 from app.models.user import User
+from app.schemas.pagination import PaginationParams
 from app.schemas.property import (
     PropertyCreate,
     PropertyCreateResponse,
@@ -30,14 +35,36 @@ router = APIRouter(prefix="/api/v1/properties", tags=["Properties"])
     response_model=PropertyListResponse,
     response_model_exclude_none=True,
     summary="List properties",
-    description="This endpoint is used to fetch all accommodation properties that customers can browse.",
+    description="This endpoint is used to fetch accommodation properties with pagination, search, and filters.",
     response_description="A list of properties wrapped in the standard API response.",
 )
-def list_properties(db: Session = Depends(get_db)):
-    properties = get_properties(db)
+def list_properties(
+    search: Annotated[
+        str | None,
+        Query(description="Search by property name or description."),
+    ] = None,
+    location: Annotated[
+        str | None,
+        Query(description="Filter by property location."),
+    ] = None,
+    status_filter: Annotated[
+        RecordStatus,
+        Query(alias="status", description="Filter by property record status."),
+    ] = RecordStatus.ACTIVE,
+    pagination: PaginationParams = Depends(get_pagination_params),
+    db: Session = Depends(get_db),
+):
+    properties, total = get_properties(
+        db,
+        pagination=pagination,
+        search=search,
+        location=location,
+        status=status_filter,
+    )
     return api_response(
         message="Properties retrieved successfully",
         data=properties,
+        pagination=pagination.to_meta(total),
     )
 
 

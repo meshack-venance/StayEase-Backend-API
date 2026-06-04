@@ -1,19 +1,43 @@
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import StayEaseException
 from app.models.common import RecordStatus
 from app.models.property import Property
+from app.schemas.pagination import PaginationParams
 from app.schemas.property import PropertyCreate, PropertyUpdate
 
 
-def get_properties(db: Session) -> list[Property]:
+def get_properties(
+    db: Session,
+    pagination: PaginationParams,
+    search: str | None = None,
+    location: str | None = None,
+    status: RecordStatus = RecordStatus.ACTIVE,
+) -> tuple[list[Property], int]:
+    filters = [Property.status == status]
+
+    if search:
+        search_value = f"%{search}%"
+        filters.append(
+            or_(
+                Property.name.ilike(search_value),
+                Property.description.ilike(search_value),
+            )
+        )
+
+    if location:
+        filters.append(Property.location.ilike(f"%{location}%"))
+
+    count_statement = select(func.count()).select_from(Property).where(*filters)
     statement = (
         select(Property)
-        .where(Property.status == RecordStatus.ACTIVE)
+        .where(*filters)
         .order_by(Property.created_at.desc())
+        .offset(pagination.offset)
+        .limit(pagination.size)
     )
-    return list(db.scalars(statement))
+    return list(db.scalars(statement)), db.scalar(count_statement) or 0
 
 
 def get_property_by_id(db: Session, property_id: int) -> Property:
