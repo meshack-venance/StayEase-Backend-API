@@ -16,6 +16,7 @@ The project currently covers:
 - Phase 5: room management
 - Phase 6: booking management
 - Phase 7: file uploads
+- Phase 8: authorization and roles
 
 ## Tech Stack
 
@@ -133,7 +134,9 @@ GET /health
 GET /health/database
 POST /api/v1/auth/register
 POST /api/v1/auth/login
+GET /api/v1/users
 GET /api/v1/users/me
+GET /api/v1/users/{user_id}
 GET /api/v1/properties
 GET /api/v1/properties/{property_id}
 POST /api/v1/properties
@@ -145,6 +148,7 @@ POST /api/v1/rooms
 PUT /api/v1/rooms/{room_id}
 DELETE /api/v1/rooms/{room_id}
 GET /api/v1/properties/{property_id}/rooms
+GET /api/v1/bookings
 POST /api/v1/bookings
 GET /api/v1/bookings/my
 DELETE /api/v1/bookings/{booking_id}
@@ -208,6 +212,52 @@ curl http://127.0.0.1:8000/api/v1/users/me \
   -H "Authorization: Bearer your.jwt.token"
 ```
 
+## User Management
+
+Phase 8 adds admin-only user visibility.
+
+Admin endpoints:
+
+```http
+GET /api/v1/users
+GET /api/v1/users/{user_id}
+```
+
+### List Users
+
+```bash
+curl http://127.0.0.1:8000/api/v1/users \
+  -H "Authorization: Bearer admin.jwt.token"
+```
+
+Response format:
+
+```json
+{
+  "success": true,
+  "message": "Users retrieved successfully",
+  "data": [
+    {
+      "id": 1,
+      "first_name": "Meshack",
+      "last_name": "Venance",
+      "email": "meshack@example.com",
+      "role": "CUSTOMER",
+      "status": "ACTIVE",
+      "created_at": "2026-06-04T12:00:00Z",
+      "updated_at": "2026-06-04T12:00:00Z"
+    }
+  ]
+}
+```
+
+### Get User Details
+
+```bash
+curl http://127.0.0.1:8000/api/v1/users/1 \
+  -H "Authorization: Bearer admin.jwt.token"
+```
+
 ## Property Management
 
 Phase 4 adds CRUD operations for accommodation properties.
@@ -219,7 +269,7 @@ GET /api/v1/properties
 GET /api/v1/properties/{property_id}
 ```
 
-Write endpoints require a bearer token:
+Write endpoints require an ADMIN bearer token:
 
 ```http
 POST /api/v1/properties
@@ -227,7 +277,7 @@ PUT /api/v1/properties/{property_id}
 DELETE /api/v1/properties/{property_id}
 ```
 
-Admin-only role checks are intentionally left for Phase 8. For now, Phase 4 teaches CRUD structure and authenticated write operations.
+Customers can browse properties, but only admins can create, update, delete, or upload property images.
 
 ### Create Property
 
@@ -308,7 +358,7 @@ GET /api/v1/rooms/{room_id}
 GET /api/v1/properties/{property_id}/rooms
 ```
 
-Write endpoints require a bearer token:
+Write endpoints require an ADMIN bearer token:
 
 ```http
 POST /api/v1/rooms
@@ -316,7 +366,7 @@ PUT /api/v1/rooms/{room_id}
 DELETE /api/v1/rooms/{room_id}
 ```
 
-Admin-only role checks are intentionally left for Phase 8. For now, Phase 5 teaches foreign keys, one-to-many relationships, and CRUD with a parent record.
+Customers can browse rooms, but only admins can create, update, or deactivate rooms.
 
 ### Create Room
 
@@ -397,12 +447,16 @@ User
         └── Property
 ```
 
-All booking endpoints require a bearer token:
+Booking endpoints are split by role:
 
 ```http
-POST /api/v1/bookings
-GET /api/v1/bookings/my
-DELETE /api/v1/bookings/{booking_id}
+ADMIN:
+  GET /api/v1/bookings
+
+CUSTOMER:
+  POST /api/v1/bookings
+  GET /api/v1/bookings/my
+  DELETE /api/v1/bookings/{booking_id}
 ```
 
 Booking business rules:
@@ -455,6 +509,15 @@ curl http://127.0.0.1:8000/api/v1/bookings/my \
   -H "Authorization: Bearer your.jwt.token"
 ```
 
+### List All Bookings
+
+Admin only:
+
+```bash
+curl http://127.0.0.1:8000/api/v1/bookings \
+  -H "Authorization: Bearer admin.jwt.token"
+```
+
 ### Cancel Booking
 
 ```bash
@@ -466,11 +529,14 @@ curl -X DELETE http://127.0.0.1:8000/api/v1/bookings/1 \
 
 Phase 7 adds image uploads for user profiles and properties.
 
-Both upload endpoints require a bearer token:
+Upload endpoints are split by role:
 
 ```http
-POST /api/v1/uploads/profile
-POST /api/v1/uploads/properties/{property_id}
+AUTHENTICATED USER:
+  POST /api/v1/uploads/profile
+
+ADMIN:
+  POST /api/v1/uploads/properties/{property_id}
 ```
 
 Accepted image types:
@@ -514,7 +580,7 @@ Response format:
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/v1/uploads/properties/1 \
-  -H "Authorization: Bearer your.jwt.token" \
+  -H "Authorization: Bearer admin.jwt.token" \
   -F "file=@property.png"
 ```
 
@@ -747,11 +813,60 @@ Request with Authorization header and multipart file
 -> route returns the standard API response
 ```
 
+## Phase 8 Learning Notes
+
+Authentication checks who the user is. Authorization checks what that user is allowed to do.
+
+Spring Boot comparison:
+
+```text
+FastAPI dependency guard     Spring Security @PreAuthorize / role check
+require_admin                hasRole("ADMIN")
+require_customer             hasRole("CUSTOMER")
+```
+
+`app/dependencies/auth.py` now has reusable role guards. Each guard first depends on `get_current_user()`, so the route gets both authentication and authorization in one dependency.
+
+The admin authorization flow is:
+
+```text
+Request with Authorization header
+-> get_current_user validates JWT
+-> require_admin checks current_user.role
+-> route runs only when the user is ADMIN
+```
+
+The customer authorization flow is:
+
+```text
+Request with Authorization header
+-> get_current_user validates JWT
+-> require_customer checks current_user.role
+-> booking service still checks ownership using current_user.id
+```
+
+Role rules added in Phase 8:
+
+```text
+ADMIN:
+  manage properties
+  manage rooms
+  upload property images
+  view all bookings
+  view users
+
+CUSTOMER:
+  create bookings
+  view own bookings
+  cancel own bookings
+```
+
 ## Next Phase
 
-Phase 8 will add authorization and roles:
+Phase 9 will add API quality improvements:
 
-- ADMIN and CUSTOMER route checks
-- Admin-only property and room management
-- Admin-only all-bookings view
-- Customer-only booking ownership rules
+- Pagination
+- Search
+- Filtering
+- More response consistency
+- Production-style API polish
