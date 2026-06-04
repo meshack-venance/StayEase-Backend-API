@@ -11,7 +11,7 @@ from app.core.database import Base, engine, get_db
 from app.core.exception_handlers import register_exception_handlers
 from app.core.exceptions import StayEaseException
 from app.models import property, user
-from app.routers import auth, users
+from app.routers import auth, properties, users
 
 
 @asynccontextmanager
@@ -34,6 +34,7 @@ app = FastAPI(
 register_exception_handlers(app)
 
 app.include_router(auth.router)
+app.include_router(properties.router)
 app.include_router(users.router)
 
 
