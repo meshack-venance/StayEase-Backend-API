@@ -12,6 +12,7 @@ The project currently covers:
 - Phase 1: FastAPI project foundation
 - Phase 2: database and configuration setup
 - Phase 3: user management and JWT authentication
+- Phase 4: property management
 
 ## Tech Stack
 
@@ -123,9 +124,14 @@ http://127.0.0.1:8000/docs
 GET /
 GET /health
 GET /health/database
-POST /auth/register
-POST /auth/login
-GET /users/me
+POST /api/v1/auth/register
+POST /api/v1/auth/login
+GET /api/v1/users/me
+GET /api/v1/properties
+GET /api/v1/properties/{property_id}
+POST /api/v1/properties
+PUT /api/v1/properties/{property_id}
+DELETE /api/v1/properties/{property_id}
 ```
 
 `GET /health/database` runs a simple `SELECT 1` query to confirm that PostgreSQL is reachable.
@@ -139,11 +145,11 @@ Phase 3 adds user registration, login, password hashing, JWT authentication, and
 ### Register
 
 ```bash
-curl -X POST http://127.0.0.1:8000/auth/register \
+curl -X POST http://127.0.0.1:8000/api/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "first_name": "Meshack",
-    "last_name": "Mushi",
+    "last_name": "Venance",
     "email": "meshack@example.com",
     "password": "password123"
   }'
@@ -154,7 +160,7 @@ The API stores a hashed password. It does not return the password in the respons
 ### Login
 
 ```bash
-curl -X POST http://127.0.0.1:8000/auth/login \
+curl -X POST http://127.0.0.1:8000/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "meshack@example.com",
@@ -166,8 +172,12 @@ Response:
 
 ```json
 {
-  "access_token": "your.jwt.token",
-  "token_type": "bearer"
+  "success": true,
+  "message": "Login successful",
+  "data": {
+    "access_token": "your.jwt.token",
+    "token_type": "bearer"
+  }
 }
 ```
 
@@ -176,8 +186,85 @@ Response:
 Use the token from login:
 
 ```bash
-curl http://127.0.0.1:8000/users/me \
+curl http://127.0.0.1:8000/api/v1/users/me \
   -H "Authorization: Bearer your.jwt.token"
+```
+
+## Property Management
+
+Phase 4 adds CRUD operations for accommodation properties.
+
+Read endpoints are public:
+
+```http
+GET /api/v1/properties
+GET /api/v1/properties/{property_id}
+```
+
+Write endpoints require a bearer token:
+
+```http
+POST /api/v1/properties
+PUT /api/v1/properties/{property_id}
+DELETE /api/v1/properties/{property_id}
+```
+
+Admin-only role checks are intentionally left for Phase 8. For now, Phase 4 teaches CRUD structure and authenticated write operations.
+
+### Create Property
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/properties \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your.jwt.token" \
+  -d '{
+    "name": "StayEase City Hotel",
+    "description": "Modern hotel near the city center with free Wi-Fi.",
+    "location": "Dar es Salaam, Tanzania",
+    "rating": "4.5"
+  }'
+```
+
+Response format:
+
+```json
+{
+  "success": true,
+  "message": "Property created successfully",
+  "data": {
+    "id": 1,
+    "name": "StayEase City Hotel",
+    "description": "Modern hotel near the city center with free Wi-Fi.",
+    "location": "Dar es Salaam, Tanzania",
+    "rating": "4.5",
+    "created_at": "2026-06-04T12:00:00Z"
+  }
+}
+```
+
+### List Properties
+
+```bash
+curl http://127.0.0.1:8000/api/v1/properties
+```
+
+Response format:
+
+```json
+{
+  "success": true,
+  "message": "Properties retrieved successfully",
+  "data": [
+    {
+      "id": 1,
+      "name": "StayEase City Hotel",
+      "description": "Modern hotel near the city center with free Wi-Fi.",
+      "location": "Dar es Salaam, Tanzania",
+      "rating": "4.5",
+      "created_at": "2026-06-04T12:00:00Z"
+    }
+  ]
+}
 ```
 
 ## PostgreSQL Setup
@@ -238,12 +325,41 @@ Request with Authorization header
 -> route receives current_user
 ```
 
+## Phase 4 Learning Notes
+
+`app/models/property.py` defines the SQLAlchemy `Property` model. This is similar to a Spring Boot `@Entity`.
+
+`app/schemas/property.py` defines property request and response schemas. These are similar to DTOs.
+
+`app/services/property_service.py` contains property database logic such as fetching, creating, updating, and deleting properties.
+
+`app/routers/properties.py` contains the property HTTP endpoints. This is similar to a Spring Boot `@RestController`.
+
+The property flow is:
+
+```text
+Request
+-> property router
+-> get_db dependency provides a database session
+-> property service runs SQLAlchemy logic
+-> route returns the standard API response
+```
+
+For write operations:
+
+```text
+Request with Authorization header
+-> get_current_user validates JWT
+-> property service performs create/update/delete
+```
+
 ## Next Phase
 
-Phase 4 will add property management:
+Phase 5 will add room management:
 
-- Property model
-- Property schemas
-- Property service
-- Property CRUD routes
+- Room model
+- Room schemas
+- Room service
+- Room CRUD routes
+- Relationship between rooms and properties
 - Admin-only protection later in Phase 8
