@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.exceptions import StayEaseException
 from app.core.security import decode_access_token
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.services.user_service import get_user_by_id
 
 
@@ -41,3 +41,25 @@ def get_current_user(
         raise credentials_exception
 
     return user
+
+
+def require_admin(current_user: Annotated[User, Depends(get_current_user)]) -> User:
+    # Role guard: authenticate first, then allow only platform administrators.
+    if current_user.role != UserRole.ADMIN:
+        raise StayEaseException(
+            message="Admin access is required",
+            status_code=status.HTTP_403_FORBIDDEN,
+        )
+
+    return current_user
+
+
+def require_customer(current_user: Annotated[User, Depends(get_current_user)]) -> User:
+    # Role guard: useful when a route should be limited to customer workflows.
+    if current_user.role != UserRole.CUSTOMER:
+        raise StayEaseException(
+            message="Customer access is required",
+            status_code=status.HTTP_403_FORBIDDEN,
+        )
+
+    return current_user
