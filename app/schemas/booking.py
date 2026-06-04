@@ -4,6 +4,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.booking import BookingStatus
+from app.schemas.pagination import PaginationMeta
 
 
 class BookingCreate(BaseModel):
@@ -44,12 +45,14 @@ class MyBookingListResponse(BaseModel):
     success: Literal[True] = True
     message: Literal["Bookings retrieved successfully"] = "Bookings retrieved successfully"
     data: list[BookingResponse]
+    pagination: PaginationMeta
 
 
 class AdminBookingListResponse(BaseModel):
     success: Literal[True] = True
     message: Literal["All bookings retrieved successfully"] = "All bookings retrieved successfully"
     data: list[BookingResponse]
+    pagination: PaginationMeta
 
 
 class BookingCancelResponse(BaseModel):

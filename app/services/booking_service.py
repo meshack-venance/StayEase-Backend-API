@@ -1,12 +1,13 @@
 from datetime import date
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import StayEaseException
 from app.models.booking import Booking, BookingStatus
 from app.models.user import User
 from app.schemas.booking import BookingCreate
+from app.schemas.pagination import PaginationParams
 from app.services.room_service import get_room_by_id
 
 
@@ -42,19 +43,55 @@ def create_booking(
     return booking
 
 
-def get_my_bookings(db: Session, current_user: User) -> list[Booking]:
+def get_my_bookings(
+    db: Session,
+    current_user: User,
+    pagination: PaginationParams,
+    status: BookingStatus | None = None,
+) -> tuple[list[Booking], int]:
+    filters = [Booking.user_id == current_user.id]
+    if status is not None:
+        filters.append(Booking.status == status)
+
+    count_statement = select(func.count()).select_from(Booking).where(*filters)
     statement = (
         select(Booking)
-        .where(Booking.user_id == current_user.id)
+        .where(*filters)
         .order_by(Booking.created_at.desc())
+        .offset(pagination.offset)
+        .limit(pagination.size)
     )
-    return list(db.scalars(statement))
+    return list(db.scalars(statement)), db.scalar(count_statement) or 0
 
 
-def get_all_bookings(db: Session) -> list[Booking]:
+def get_all_bookings(
+    db: Session,
+    pagination: PaginationParams,
+    status: BookingStatus | None = None,
+    user_id: int | None = None,
+    room_id: int | None = None,
+) -> tuple[list[Booking], int]:
+    filters = []
+
+    if status is not None:
+        filters.append(Booking.status == status)
+
+    if user_id is not None:
+        filters.append(Booking.user_id == user_id)
+
+    if room_id is not None:
+        filters.append(Booking.room_id == room_id)
+
     # Admin view: no ownership filter because admins manage platform-wide activity.
-    statement = select(Booking).order_by(Booking.created_at.desc())
-    return list(db.scalars(statement))
+    count_statement = select(func.count()).select_from(Booking).where(*filters)
+    statement = (
+        select(Booking)
+        .where(*filters)
+        .order_by(Booking.created_at.desc())
+        .offset(pagination.offset)
+        .limit(pagination.size)
+    )
+    return list(db.scalars(statement)), db.scalar(count_statement) or 0
 
 
 def cancel_booking(

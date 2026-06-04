@@ -1,9 +1,14 @@
-from fastapi import APIRouter, Depends, status
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.dependencies.auth import require_admin, require_customer
+from app.dependencies.pagination import get_pagination_params
+from app.models.booking import BookingStatus
 from app.models.user import User
+from app.schemas.pagination import PaginationParams
 from app.schemas.booking import (
     AdminBookingListResponse,
     BookingCancelResponse,
@@ -31,14 +36,34 @@ router = APIRouter(prefix="/api/v1/bookings", tags=["Bookings"])
     response_description="All bookings wrapped in the standard API response.",
 )
 def list_all_bookings(
+    status_filter: Annotated[
+        BookingStatus | None,
+        Query(alias="status", description="Filter by booking status."),
+    ] = None,
+    user_id: Annotated[
+        int | None,
+        Query(ge=1, description="Filter by customer user id."),
+    ] = None,
+    room_id: Annotated[
+        int | None,
+        Query(ge=1, description="Filter by room id."),
+    ] = None,
+    pagination: PaginationParams = Depends(get_pagination_params),
     db: Session = Depends(get_db),
     _current_user: User = Depends(require_admin),
 ):
     # Admin route: unlike /my, this intentionally has no customer ownership filter.
-    bookings = get_all_bookings(db)
+    bookings, total = get_all_bookings(
+        db,
+        pagination=pagination,
+        status=status_filter,
+        user_id=user_id,
+        room_id=room_id,
+    )
     return api_response(
         message="All bookings retrieved successfully",
         data=bookings,
+        pagination=pagination.to_meta(total),
     )
 
 
@@ -72,13 +97,24 @@ def create_new_booking(
     response_description="The customer's bookings wrapped in the standard API response.",
 )
 def list_my_bookings(
+    status_filter: Annotated[
+        BookingStatus | None,
+        Query(alias="status", description="Filter your bookings by status."),
+    ] = None,
+    pagination: PaginationParams = Depends(get_pagination_params),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_customer),
 ):
-    bookings = get_my_bookings(db, current_user)
+    bookings, total = get_my_bookings(
+        db,
+        current_user,
+        pagination=pagination,
+        status=status_filter,
+    )
     return api_response(
         message="Bookings retrieved successfully",
         data=bookings,
+        pagination=pagination.to_meta(total),
     )
 
 
