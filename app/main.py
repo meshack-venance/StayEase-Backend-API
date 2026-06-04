@@ -1,4 +1,7 @@
+from pathlib import Path
+
 from fastapi import Depends, FastAPI, status
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -7,7 +10,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.exceptions import StayEaseException
 from app.core.exceptions.handlers import register_exception_handlers
-from app.routers import auth, bookings, properties, rooms, users
+from app.routers import auth, bookings, properties, rooms, uploads, users
 
 
 app = FastAPI(
@@ -19,11 +22,17 @@ app = FastAPI(
 
 register_exception_handlers(app)
 
+# StaticFiles works like Spring Boot's static resources: files saved here can be
+# requested later from the browser or API clients using their public URL.
+Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads")
+
 app.include_router(auth.router)
 app.include_router(properties.router)
 app.include_router(rooms.router)
 app.include_router(rooms.property_rooms_router)
 app.include_router(bookings.router)
+app.include_router(uploads.router)
 app.include_router(users.router)
 
 
