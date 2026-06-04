@@ -46,6 +46,12 @@ class MyBookingListResponse(BaseModel):
     data: list[BookingResponse]
 
 
+class AdminBookingListResponse(BaseModel):
+    success: Literal[True] = True
+    message: Literal["All bookings retrieved successfully"] = "All bookings retrieved successfully"
+    data: list[BookingResponse]
+
+
 class BookingCancelResponse(BaseModel):
     success: Literal[True] = True
     message: Literal["Booking cancelled successfully"] = "Booking cancelled successfully"

@@ -51,6 +51,12 @@ def get_my_bookings(db: Session, current_user: User) -> list[Booking]:
     return list(db.scalars(statement))
 
 
+def get_all_bookings(db: Session) -> list[Booking]:
+    # Admin view: no ownership filter because admins manage platform-wide activity.
+    statement = select(Booking).order_by(Booking.created_at.desc())
+    return list(db.scalars(statement))
+
+
 def cancel_booking(
     db: Session,
     booking_id: int,

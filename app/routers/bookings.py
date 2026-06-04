@@ -2,18 +2,44 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.dependencies.auth import get_current_user
+from app.dependencies.auth import get_current_user, require_admin
 from app.models.user import User
 from app.schemas.booking import (
+    AdminBookingListResponse,
     BookingCancelResponse,
     BookingCreate,
     BookingCreateResponse,
     MyBookingListResponse,
 )
 from app.schemas.response import api_response
-from app.services.booking_service import cancel_booking, create_booking, get_my_bookings
+from app.services.booking_service import (
+    cancel_booking,
+    create_booking,
+    get_all_bookings,
+    get_my_bookings,
+)
 
 router = APIRouter(prefix="/api/v1/bookings", tags=["Bookings"])
+
+
+@router.get(
+    "",
+    response_model=AdminBookingListResponse,
+    response_model_exclude_none=True,
+    summary="List all bookings",
+    description="This endpoint is used by an admin to view all bookings in the system.",
+    response_description="All bookings wrapped in the standard API response.",
+)
+def list_all_bookings(
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_admin),
+):
+    # Admin route: unlike /my, this intentionally has no customer ownership filter.
+    bookings = get_all_bookings(db)
+    return api_response(
+        message="All bookings retrieved successfully",
+        data=bookings,
+    )
 
 
 @router.post(
