@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.dependencies.auth import get_current_user, require_admin
+from app.dependencies.auth import require_admin, require_customer
 from app.models.user import User
 from app.schemas.booking import (
     AdminBookingListResponse,
@@ -54,7 +54,7 @@ def list_all_bookings(
 def create_new_booking(
     booking_data: BookingCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_customer),
 ):
     booking = create_booking(db, booking_data, current_user)
     return api_response(
@@ -73,7 +73,7 @@ def create_new_booking(
 )
 def list_my_bookings(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_customer),
 ):
     bookings = get_my_bookings(db, current_user)
     return api_response(
@@ -93,7 +93,7 @@ def list_my_bookings(
 def cancel_existing_booking(
     booking_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_customer),
 ):
     # Ownership is checked in the service using current_user.id.
     booking = cancel_booking(db, booking_id, current_user)
