@@ -1,9 +1,14 @@
-from fastapi import APIRouter, Depends, status
+from decimal import Decimal
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.dependencies.auth import require_admin
+from app.dependencies.pagination import get_pagination_params
 from app.models.user import User
+from app.schemas.pagination import PaginationParams
 from app.schemas.response import api_response
 from app.schemas.room import (
     PropertyRoomListResponse,
@@ -33,14 +38,51 @@ property_rooms_router = APIRouter(prefix="/api/v1/properties", tags=["Rooms"])
     response_model=RoomListResponse,
     response_model_exclude_none=True,
     summary="List rooms",
-    description="This endpoint is used to fetch all active rooms across all properties.",
+    description="This endpoint is used to fetch active rooms with pagination and filters.",
     response_description="A list of rooms wrapped in the standard API response.",
 )
-def list_rooms(db: Session = Depends(get_db)):
-    rooms = get_rooms(db)
+def list_rooms(
+    property_id: Annotated[
+        int | None,
+        Query(description="Filter rooms by property id."),
+    ] = None,
+    room_type: Annotated[
+        str | None,
+        Query(description="Filter rooms by type."),
+    ] = None,
+    min_price: Annotated[
+        Decimal | None,
+        Query(gt=0, description="Minimum nightly price."),
+    ] = None,
+    max_price: Annotated[
+        Decimal | None,
+        Query(gt=0, description="Maximum nightly price."),
+    ] = None,
+    capacity: Annotated[
+        int | None,
+        Query(ge=1, description="Minimum guest capacity."),
+    ] = None,
+    availability: Annotated[
+        bool | None,
+        Query(description="Filter by booking availability."),
+    ] = None,
+    pagination: PaginationParams = Depends(get_pagination_params),
+    db: Session = Depends(get_db),
+):
+    rooms, total = get_rooms(
+        db,
+        pagination=pagination,
+        property_id=property_id,
+        room_type=room_type,
+        min_price=min_price,
+        max_price=max_price,
+        capacity=capacity,
+        availability=availability,
+    )
     return api_response(
         message="Rooms retrieved successfully",
         data=rooms,
+        pagination=pagination.to_meta(total),
     )
 
 

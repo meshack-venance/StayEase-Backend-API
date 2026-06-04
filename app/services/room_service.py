@@ -1,20 +1,62 @@
-from sqlalchemy import select
+from decimal import Decimal
+
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import StayEaseException
 from app.models.common import RecordStatus
 from app.models.room import Room
+from app.schemas.pagination import PaginationParams
 from app.schemas.room import RoomCreate, RoomUpdate
 from app.services.property_service import get_property_by_id
 
 
-def get_rooms(db: Session) -> list[Room]:
+def get_rooms(
+    db: Session,
+    pagination: PaginationParams,
+    property_id: int | None = None,
+    room_type: str | None = None,
+    min_price: Decimal | None = None,
+    max_price: Decimal | None = None,
+    capacity: int | None = None,
+    availability: bool | None = None,
+) -> tuple[list[Room], int]:
+    if min_price is not None and max_price is not None and max_price < min_price:
+        raise StayEaseException(
+            "max_price must be greater than or equal to min_price",
+            status_code=400,
+        )
+
+    filters = [Room.status == RecordStatus.ACTIVE]
+
+    if property_id is not None:
+        get_property_by_id(db, property_id)
+        filters.append(Room.property_id == property_id)
+
+    if room_type:
+        filters.append(Room.room_type.ilike(f"%{room_type}%"))
+
+    if min_price is not None:
+        filters.append(Room.price_per_night >= min_price)
+
+    if max_price is not None:
+        filters.append(Room.price_per_night <= max_price)
+
+    if capacity is not None:
+        filters.append(Room.capacity >= capacity)
+
+    if availability is not None:
+        filters.append(Room.availability == availability)
+
+    count_statement = select(func.count()).select_from(Room).where(*filters)
     statement = (
         select(Room)
-        .where(Room.status == RecordStatus.ACTIVE)
+        .where(*filters)
         .order_by(Room.created_at.desc())
+        .offset(pagination.offset)
+        .limit(pagination.size)
     )
-    return list(db.scalars(statement))
+    return list(db.scalars(statement)), db.scalar(count_statement) or 0
 
 
 def get_rooms_by_property_id(db: Session, property_id: int) -> list[Room]:

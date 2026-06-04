@@ -5,6 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.common import RecordStatus
+from app.schemas.pagination import PaginationMeta
 
 
 class RoomCreate(BaseModel):
@@ -107,6 +108,7 @@ class RoomListResponse(BaseModel):
     success: Literal[True] = True
     message: Literal["Rooms retrieved successfully"] = "Rooms retrieved successfully"
     data: list[RoomResponse]
+    pagination: PaginationMeta
 
 
 class PropertyRoomListResponse(BaseModel):
