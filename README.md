@@ -14,6 +14,7 @@ The project currently covers:
 - Phase 3: user management and JWT authentication
 - Phase 4: property management
 - Phase 5: room management
+- Phase 6: booking management
 
 ## Tech Stack
 
@@ -139,6 +140,9 @@ POST /api/v1/rooms
 PUT /api/v1/rooms/{room_id}
 DELETE /api/v1/rooms/{room_id}
 GET /api/v1/properties/{property_id}/rooms
+POST /api/v1/bookings
+GET /api/v1/bookings/my
+DELETE /api/v1/bookings/{booking_id}
 ```
 
 `GET /health/database` runs a simple `SELECT 1` query to confirm that PostgreSQL is reachable.
@@ -373,6 +377,84 @@ Response format:
 }
 ```
 
+## Booking Management
+
+Phase 6 adds customer booking workflows.
+
+Each booking belongs to one user and one room:
+
+```text
+User
+└── Booking
+    └── Room
+        └── Property
+```
+
+All booking endpoints require a bearer token:
+
+```http
+POST /api/v1/bookings
+GET /api/v1/bookings/my
+DELETE /api/v1/bookings/{booking_id}
+```
+
+Booking business rules:
+
+```text
+check_out must be after check_in
+room must exist and be active
+room must be available
+room cannot be double-booked for overlapping dates
+customers can only view and cancel their own bookings
+cancelled bookings do not block future bookings
+```
+
+### Create Booking
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/bookings \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your.jwt.token" \
+  -d '{
+    "room_id": 1,
+    "check_in": "2026-06-10",
+    "check_out": "2026-06-15"
+  }'
+```
+
+Response format:
+
+```json
+{
+  "success": true,
+  "message": "Booking created successfully",
+  "data": {
+    "id": 1,
+    "user_id": 1,
+    "room_id": 1,
+    "check_in": "2026-06-10",
+    "check_out": "2026-06-15",
+    "status": "CONFIRMED",
+    "created_at": "2026-06-04T12:00:00Z",
+    "updated_at": "2026-06-04T12:00:00Z"
+  }
+}
+```
+
+### List My Bookings
+
+```bash
+curl http://127.0.0.1:8000/api/v1/bookings/my \
+  -H "Authorization: Bearer your.jwt.token"
+```
+
+### Cancel Booking
+
+```bash
+curl -X DELETE http://127.0.0.1:8000/api/v1/bookings/1 \
+  -H "Authorization: Bearer your.jwt.token"
+```
+
 ## PostgreSQL Setup
 
 Make sure PostgreSQL is running and create the database used in `.env`:
@@ -545,14 +627,34 @@ Request
 -> route returns the standard API response
 ```
 
+## Phase 6 Learning Notes
+
+`app/models/booking.py` defines the SQLAlchemy `Booking` model. This is similar to a Spring Boot `@Entity`.
+
+`Booking.user_id` is a foreign key to `User.id`, and `Booking.room_id` is a foreign key to `Room.id`.
+
+`app/schemas/booking.py` defines booking request and response schemas. These are similar to DTOs.
+
+`app/services/booking_service.py` contains booking business logic, including date validation, overlap checks, room availability checks, and ownership checks.
+
+`app/routers/bookings.py` contains booking HTTP endpoints. All booking routes require authentication because bookings belong to customers.
+
+The booking flow is:
+
+```text
+Request with Authorization header
+-> get_current_user validates JWT
+-> booking router receives current_user
+-> booking service validates dates, room, overlap, and ownership
+-> route returns the standard API response
+```
+
 ## Next Phase
 
-Phase 6 will add booking management:
+Phase 7 will add file uploads:
 
-- Booking model
-- Booking schemas
-- Booking service
-- Booking endpoints
-- Date validation
-- Ownership checks
-- Admin-only protection later in Phase 8
+- User profile image upload
+- Property image upload
+- Multipart form handling
+- Static file serving
+- Upload validation
