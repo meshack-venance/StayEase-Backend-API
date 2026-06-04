@@ -277,6 +277,62 @@ CREATE DATABASE stayease_db;
 
 Then confirm your `.env` connection string matches your local PostgreSQL username, password, host, port, and database name.
 
+## Database Migrations
+
+This project uses Alembic for production-style database migrations.
+
+FastAPI no longer creates tables on startup. Models define the database shape, and Alembic applies that shape to PostgreSQL.
+
+Spring Boot comparison:
+
+```text
+SQLAlchemy models      JPA @Entity
+Alembic migrations     Flyway / Liquibase migrations
+alembic upgrade head   apply pending migrations
+```
+
+Apply migrations:
+
+```bash
+make migrate
+```
+
+Create a new migration after changing models:
+
+```bash
+make migration message="describe your schema change"
+```
+
+Rollback the last migration:
+
+```bash
+make rollback
+```
+
+Direct Alembic commands also work:
+
+```bash
+venv/bin/python -m alembic upgrade head
+venv/bin/python -m alembic revision --autogenerate -m "describe your schema change"
+venv/bin/python -m alembic downgrade -1
+```
+
+Important: after changing models, do not expect FastAPI to update existing tables automatically. Generate and apply an Alembic migration.
+
+If your local database already has tables that were created by the old `Base.metadata.create_all()` startup code, use one of these learning-friendly options:
+
+```text
+Fresh dev database: drop/recreate the database, then run make migrate.
+Existing matching schema: run alembic stamp head to mark the current schema as migrated.
+Existing old schema: create/apply a migration that alters the old tables.
+```
+
+For this project, the simplest learning path is usually a fresh local database, then:
+
+```bash
+make migrate
+```
+
 ## Useful Commands
 
 If using the included `Makefile`:
@@ -285,6 +341,9 @@ If using the included `Makefile`:
 make dev
 make install
 make check
+make migrate
+make migration message="describe your schema change"
+make rollback
 ```
 
 What they do:
@@ -293,6 +352,9 @@ What they do:
 make dev      starts the development server with reload
 make install  installs Python dependencies
 make check    compile-checks the app package
+make migrate  applies pending Alembic migrations
+make migration creates a new Alembic migration from model changes
+make rollback rolls back the previous Alembic migration
 ```
 
 ## Phase 2 Learning Notes
@@ -302,6 +364,8 @@ make check    compile-checks the app package
 `app/core/database.py` creates the SQLAlchemy engine and session factory. The engine knows how to connect to PostgreSQL. The session represents a unit of database work.
 
 `get_db()` is a FastAPI dependency. It gives a route a database session and closes it when the request is finished. In Spring Boot, much of this session lifecycle is handled automatically.
+
+`alembic/env.py` connects Alembic to the same `DATABASE_URL` used by FastAPI and points Alembic at `Base.metadata` so migrations can read SQLAlchemy models.
 
 ## Phase 3 Learning Notes
 
@@ -319,7 +383,7 @@ The protected route flow is:
 
 ```text
 Request with Authorization header
--> OAuth2PasswordBearer extracts token
+-> HTTPBearer extracts token
 -> get_current_user decodes JWT
 -> user is loaded from PostgreSQL
 -> route receives current_user
