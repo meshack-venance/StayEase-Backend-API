@@ -17,6 +17,7 @@ The project currently covers:
 - Phase 6: booking management
 - Phase 7: file uploads
 - Phase 8: authorization and roles
+- Phase 9: pagination, search, filtering, and response consistency
 
 ## Tech Stack
 
@@ -315,7 +316,7 @@ Response format:
 ### List Properties
 
 ```bash
-curl http://127.0.0.1:8000/api/v1/properties
+curl "http://127.0.0.1:8000/api/v1/properties?page=1&size=10&search=hotel&location=dar&status=ACTIVE"
 ```
 
 Response format:
@@ -335,7 +336,13 @@ Response format:
       "created_at": "2026-06-04T12:00:00Z",
       "updated_at": "2026-06-04T12:00:00Z"
     }
-  ]
+  ],
+  "pagination": {
+    "page": 1,
+    "size": 10,
+    "total": 25,
+    "pages": 3
+  }
 }
 ```
 
@@ -406,6 +413,14 @@ Response format:
 ```
 
 ### List Rooms For A Property
+
+List all rooms with filters:
+
+```bash
+curl "http://127.0.0.1:8000/api/v1/rooms?page=1&size=10&property_id=1&room_type=deluxe&min_price=50&max_price=200&capacity=2&availability=true"
+```
+
+List rooms under one property:
 
 ```bash
 curl http://127.0.0.1:8000/api/v1/properties/1/rooms
@@ -505,7 +520,7 @@ Response format:
 ### List My Bookings
 
 ```bash
-curl http://127.0.0.1:8000/api/v1/bookings/my \
+curl "http://127.0.0.1:8000/api/v1/bookings/my?page=1&size=10&status=CONFIRMED" \
   -H "Authorization: Bearer your.jwt.token"
 ```
 
@@ -514,7 +529,7 @@ curl http://127.0.0.1:8000/api/v1/bookings/my \
 Admin only:
 
 ```bash
-curl http://127.0.0.1:8000/api/v1/bookings \
+curl "http://127.0.0.1:8000/api/v1/bookings?page=1&size=10&status=CONFIRMED&user_id=1&room_id=1" \
   -H "Authorization: Bearer admin.jwt.token"
 ```
 
@@ -861,12 +876,66 @@ CUSTOMER:
   cancel own bookings
 ```
 
+## Phase 9 Learning Notes
+
+Phase 9 improves API usability when tables grow.
+
+Pagination works through a reusable dependency:
+
+```text
+GET /api/v1/properties?page=1&size=10
+```
+
+Spring Boot comparison:
+
+```text
+FastAPI pagination dependency     Spring Pageable
+PaginationParams                  Pageable
+PaginationMeta                    Page metadata
+```
+
+The paginated response shape is:
+
+```json
+{
+  "success": true,
+  "message": "Request completed successfully",
+  "data": [],
+  "pagination": {
+    "page": 1,
+    "size": 10,
+    "total": 25,
+    "pages": 3
+  }
+}
+```
+
+Search and filters were added to list endpoints:
+
+```http
+GET /api/v1/properties?search=hotel&location=dar&status=ACTIVE&page=1&size=10
+GET /api/v1/rooms?property_id=1&room_type=deluxe&min_price=50&max_price=200&capacity=2&availability=true&page=1&size=10
+GET /api/v1/bookings?status=CONFIRMED&user_id=1&room_id=1&page=1&size=10
+GET /api/v1/bookings/my?status=CONFIRMED&page=1&size=10
+```
+
+Error responses now use the same top-level envelope as successful responses:
+
+```json
+{
+  "success": false,
+  "message": "Room not found",
+  "data": null
+}
+```
+
+This is similar to using a Spring Boot `@ControllerAdvice` to standardize errors across custom exceptions, framework HTTP exceptions, and validation failures.
+
 ## Next Phase
 
-Phase 9 will add API quality improvements:
+Phase 10 will add deployment:
 
-- Pagination
-- Search
-- Filtering
-- More response consistency
-- Production-style API polish
+- Docker
+- PostgreSQL environment setup
+- Production startup command
+- Render or Railway deployment workflow
