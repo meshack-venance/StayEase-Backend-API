@@ -25,6 +25,8 @@ class Property(Base):
         Enum(RecordStatus, name="record_status"),
         default=RecordStatus.ACTIVE,
     )
+    # The file lives on disk; the database stores the public path used by clients.
+    image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     # The database sets this value, so every inserted row gets a consistent timestamp.
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

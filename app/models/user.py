@@ -30,6 +30,8 @@ class User(Base):
         Enum(RecordStatus, name="record_status"),
         default=RecordStatus.ACTIVE,
     )
+    # The file lives on disk; the database stores the public path used by clients.
+    profile_image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
