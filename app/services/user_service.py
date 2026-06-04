@@ -15,6 +15,12 @@ def get_user_by_id(db: Session, user_id: int) -> User | None:
     return db.get(User, user_id)
 
 
+def get_users(db: Session) -> list[User]:
+    # Admin view: return users newest first so recent accounts are easy to inspect.
+    statement = select(User).order_by(User.created_at.desc())
+    return list(db.scalars(statement))
+
+
 def create_user(db: Session, user_data: UserCreate) -> User:
     user = User(
         first_name=user_data.first_name,

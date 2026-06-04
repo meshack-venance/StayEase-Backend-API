@@ -73,3 +73,27 @@ class CurrentUserResponse(BaseModel):
         description="Human-readable result message.",
     )
     data: UserResponse = Field(description="The authenticated user.")
+
+
+class UserListResponse(BaseModel):
+    success: Literal[True] = Field(
+        default=True,
+        description="Shows that the request completed successfully.",
+    )
+    message: Literal["Users retrieved successfully"] = Field(
+        default="Users retrieved successfully",
+        description="Human-readable result message.",
+    )
+    data: list[UserResponse] = Field(description="All users visible to admins.")
+
+
+class UserDetailResponse(BaseModel):
+    success: Literal[True] = Field(
+        default=True,
+        description="Shows that the request completed successfully.",
+    )
+    message: Literal["User retrieved successfully"] = Field(
+        default="User retrieved successfully",
+        description="Human-readable result message.",
+    )
+    data: UserResponse = Field(description="The requested user.")
