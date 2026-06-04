@@ -15,6 +15,7 @@ The project currently covers:
 - Phase 4: property management
 - Phase 5: room management
 - Phase 6: booking management
+- Phase 7: file uploads
 
 ## Tech Stack
 
@@ -79,11 +80,15 @@ APP_VERSION=1.0.0
 APP_DEBUG=True
 SECRET_KEY=change-this-secret-key-in-production
 ACCESS_TOKEN_EXPIRE_MINUTES=60
+UPLOAD_DIR=uploads
+MAX_UPLOAD_SIZE_MB=5
 ```
 
 `APP_DEBUG` is used instead of `DEBUG` to avoid collisions with existing system environment variables.
 
 If your database password contains special URL characters, encode them. For example, `@` becomes `%40`.
+
+`UPLOAD_DIR` controls where files are saved locally. `MAX_UPLOAD_SIZE_MB` controls the largest accepted image upload.
 
 ## Install Dependencies
 
@@ -143,6 +148,8 @@ GET /api/v1/properties/{property_id}/rooms
 POST /api/v1/bookings
 GET /api/v1/bookings/my
 DELETE /api/v1/bookings/{booking_id}
+POST /api/v1/uploads/profile
+POST /api/v1/uploads/properties/{property_id}
 ```
 
 `GET /health/database` runs a simple `SELECT 1` query to confirm that PostgreSQL is reachable.
@@ -455,6 +462,74 @@ curl -X DELETE http://127.0.0.1:8000/api/v1/bookings/1 \
   -H "Authorization: Bearer your.jwt.token"
 ```
 
+## File Uploads
+
+Phase 7 adds image uploads for user profiles and properties.
+
+Both upload endpoints require a bearer token:
+
+```http
+POST /api/v1/uploads/profile
+POST /api/v1/uploads/properties/{property_id}
+```
+
+Accepted image types:
+
+```text
+jpg
+jpeg
+png
+webp
+```
+
+Uploaded files are saved inside the local `uploads/` directory. The database stores the public URL path, for example `/uploads/profiles/user-1-image.png`.
+
+FastAPI serves saved files from:
+
+```text
+http://127.0.0.1:8000/uploads/...
+```
+
+### Upload Profile Image
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/uploads/profile \
+  -H "Authorization: Bearer your.jwt.token" \
+  -F "file=@avatar.png"
+```
+
+Response format:
+
+```json
+{
+  "success": true,
+  "message": "Profile image uploaded successfully",
+  "data": {
+    "url": "/uploads/profiles/user-1-abc123.png"
+  }
+}
+```
+
+### Upload Property Image
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/uploads/properties/1 \
+  -H "Authorization: Bearer your.jwt.token" \
+  -F "file=@property.png"
+```
+
+Response format:
+
+```json
+{
+  "success": true,
+  "message": "Property image uploaded successfully",
+  "data": {
+    "url": "/uploads/properties/property-1-abc123.png"
+  }
+}
+```
+
 ## PostgreSQL Setup
 
 Make sure PostgreSQL is running and create the database used in `.env`:
@@ -649,12 +724,34 @@ Request with Authorization header
 -> route returns the standard API response
 ```
 
+## Phase 7 Learning Notes
+
+`UploadFile` is FastAPI's file-upload type. It is similar to receiving a `MultipartFile` in Spring Boot.
+
+`File(...)` tells FastAPI that the request body is multipart form data, not JSON.
+
+`app/services/upload_service.py` keeps upload validation and file saving outside the router. This is the same reason Spring Boot projects usually keep business logic out of controllers.
+
+The upload service validates file type, extension, and size before saving the file. This keeps bad uploads from reaching storage.
+
+`app.main` mounts `StaticFiles` at `/uploads`. This is similar to serving static resources in Spring Boot, but here we wire it explicitly.
+
+The upload flow is:
+
+```text
+Request with Authorization header and multipart file
+-> get_current_user validates JWT
+-> upload router receives UploadFile
+-> upload service validates and saves the file
+-> database stores the public file URL
+-> route returns the standard API response
+```
+
 ## Next Phase
 
-Phase 7 will add file uploads:
+Phase 8 will add authorization and roles:
 
-- User profile image upload
-- Property image upload
-- Multipart form handling
-- Static file serving
-- Upload validation
+- ADMIN and CUSTOMER route checks
+- Admin-only property and room management
+- Admin-only all-bookings view
+- Customer-only booking ownership rules
