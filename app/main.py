@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.exception_handlers import register_exception_handlers
 from app.core.exceptions import StayEaseException
+from app.core.exceptions.handlers import register_exception_handlers
 from app.routers import auth, properties, users
 
 
