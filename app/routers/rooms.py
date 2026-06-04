@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.dependencies.auth import get_current_user
+from app.dependencies.auth import require_admin
 from app.models.user import User
 from app.schemas.response import api_response
 from app.schemas.room import (
@@ -82,15 +82,15 @@ def get_room(room_id: int, db: Session = Depends(get_db)):
     response_model_exclude_none=True,
     status_code=status.HTTP_201_CREATED,
     summary="Create room",
-    description="This endpoint is used to create a room under an existing property. The user must be authenticated.",
+    description="This endpoint is used by an admin to create a room under an existing property.",
     response_description="The newly created room wrapped in the standard API response.",
 )
 def create_new_room(
     room_data: RoomCreate,
     db: Session = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    _current_user: User = Depends(require_admin),
 ):
-    # Phase 5 checks authentication only; admin-only authorization comes in Phase 8.
+    # Only admins can manage rooms because rooms are part of platform inventory.
     room = create_room(db, room_data)
     return api_response(
         message="Room created successfully",
@@ -103,16 +103,16 @@ def create_new_room(
     response_model=RoomUpdateResponse,
     response_model_exclude_none=True,
     summary="Update room",
-    description="This endpoint is used to update an existing room. The user must be authenticated.",
+    description="This endpoint is used by an admin to update an existing room.",
     response_description="The updated room wrapped in the standard API response.",
 )
 def update_existing_room(
     room_id: int,
     room_data: RoomUpdate,
     db: Session = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    _current_user: User = Depends(require_admin),
 ):
-    # Phase 5 checks authentication only; admin-only authorization comes in Phase 8.
+    # Only admins can manage rooms because rooms are part of platform inventory.
     room = update_room(db, room_id, room_data)
     return api_response(
         message="Room updated successfully",
@@ -125,13 +125,13 @@ def update_existing_room(
     response_model=RoomDeleteResponse,
     response_model_exclude_none=True,
     summary="Delete room",
-    description="This endpoint is used to deactivate a room. The user must be authenticated.",
+    description="This endpoint is used by an admin to deactivate a room.",
     response_description="A success message wrapped in the standard API response.",
 )
 def delete_existing_room(
     room_id: int,
     db: Session = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    _current_user: User = Depends(require_admin),
 ):
     # Rooms are soft-deleted so booking history can stay connected later.
     delete_room(db, room_id)

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.dependencies.auth import get_current_user
+from app.dependencies.auth import require_admin
 from app.models.user import User
 from app.schemas.property import (
     PropertyCreate,
@@ -63,15 +63,15 @@ def get_property(property_id: int, db: Session = Depends(get_db)):
     response_model_exclude_none=True,
     status_code=status.HTTP_201_CREATED,
     summary="Create property",
-    description="This endpoint is used to create a new accommodation property. The user must be authenticated.",
+    description="This endpoint is used by an admin to create a new accommodation property.",
     response_description="The newly created property wrapped in the standard API response.",
 )
 def create_new_property(
     property_data: PropertyCreate,
     db: Session = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    _current_user: User = Depends(require_admin),
 ):
-    # Phase 4 only checks authentication; admin-only authorization comes in Phase 8.
+    # Only admins can manage platform property records.
     property_item = create_property(db, property_data)
     return api_response(
         message="Property created successfully",
@@ -84,16 +84,16 @@ def create_new_property(
     response_model=PropertyUpdateResponse,
     response_model_exclude_none=True,
     summary="Update property",
-    description="This endpoint is used to update an existing accommodation property. The user must be authenticated.",
+    description="This endpoint is used by an admin to update an existing accommodation property.",
     response_description="The updated property wrapped in the standard API response.",
 )
 def update_existing_property(
     property_id: int,
     property_data: PropertyUpdate,
     db: Session = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    _current_user: User = Depends(require_admin),
 ):
-    # Phase 4 only checks authentication; admin-only authorization comes in Phase 8.
+    # Only admins can manage platform property records.
     property_item = update_property(db, property_id, property_data)
     return api_response(
         message="Property updated successfully",
@@ -106,14 +106,14 @@ def update_existing_property(
     response_model=PropertyDeleteResponse,
     response_model_exclude_none=True,
     summary="Delete property",
-    description="This endpoint is used to delete an accommodation property. The user must be authenticated.",
+    description="This endpoint is used by an admin to delete an accommodation property.",
     response_description="A success message wrapped in the standard API response.",
 )
 def delete_existing_property(
     property_id: int,
     db: Session = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    _current_user: User = Depends(require_admin),
 ):
-    # Phase 4 only checks authentication; admin-only authorization comes in Phase 8.
+    # Only admins can manage platform property records.
     delete_property(db, property_id)
     return api_response(message="Property deleted successfully")

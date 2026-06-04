@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.dependencies.auth import get_current_user
+from app.dependencies.auth import get_current_user, require_admin
 from app.models.user import User
 from app.schemas.response import api_response
 from app.schemas.upload import ProfileImageUploadResponse, PropertyImageUploadResponse
@@ -44,16 +44,16 @@ async def upload_profile_image(
     response_model=PropertyImageUploadResponse,
     response_model_exclude_none=True,
     summary="Upload property image",
-    description="This endpoint is used by an authenticated user to upload or replace a property image.",
+    description="This endpoint is used by an admin to upload or replace a property image.",
     response_description="The uploaded property image URL wrapped in the standard API response.",
 )
 async def upload_property_image(
     property_id: int,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    _current_user: User = Depends(require_admin),
 ):
-    # Phase 7 checks authentication only; admin-only authorization comes in Phase 8.
+    # Property images are part of admin-managed platform content.
     property_item = get_property_by_id(db, property_id)
     url = await save_image_upload(
         file,
