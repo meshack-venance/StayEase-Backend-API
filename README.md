@@ -13,6 +13,7 @@ The project currently covers:
 - Phase 2: database and configuration setup
 - Phase 3: user management and JWT authentication
 - Phase 4: property management
+- Phase 5: room management
 
 ## Tech Stack
 
@@ -132,6 +133,12 @@ GET /api/v1/properties/{property_id}
 POST /api/v1/properties
 PUT /api/v1/properties/{property_id}
 DELETE /api/v1/properties/{property_id}
+GET /api/v1/rooms
+GET /api/v1/rooms/{room_id}
+POST /api/v1/rooms
+PUT /api/v1/rooms/{room_id}
+DELETE /api/v1/rooms/{room_id}
+GET /api/v1/properties/{property_id}/rooms
 ```
 
 `GET /health/database` runs a simple `SELECT 1` query to confirm that PostgreSQL is reachable.
@@ -237,7 +244,9 @@ Response format:
     "description": "Modern hotel near the city center with free Wi-Fi.",
     "location": "Dar es Salaam, Tanzania",
     "rating": "4.5",
-    "created_at": "2026-06-04T12:00:00Z"
+    "status": "ACTIVE",
+    "created_at": "2026-06-04T12:00:00Z",
+    "updated_at": "2026-06-04T12:00:00Z"
   }
 }
 ```
@@ -261,7 +270,104 @@ Response format:
       "description": "Modern hotel near the city center with free Wi-Fi.",
       "location": "Dar es Salaam, Tanzania",
       "rating": "4.5",
-      "created_at": "2026-06-04T12:00:00Z"
+      "status": "ACTIVE",
+      "created_at": "2026-06-04T12:00:00Z",
+      "updated_at": "2026-06-04T12:00:00Z"
+    }
+  ]
+}
+```
+
+## Room Management
+
+Phase 5 adds rooms and connects them to properties.
+
+Each room belongs to one property:
+
+```text
+Property
+└── Room
+```
+
+Read endpoints are public:
+
+```http
+GET /api/v1/rooms
+GET /api/v1/rooms/{room_id}
+GET /api/v1/properties/{property_id}/rooms
+```
+
+Write endpoints require a bearer token:
+
+```http
+POST /api/v1/rooms
+PUT /api/v1/rooms/{room_id}
+DELETE /api/v1/rooms/{room_id}
+```
+
+Admin-only role checks are intentionally left for Phase 8. For now, Phase 5 teaches foreign keys, one-to-many relationships, and CRUD with a parent record.
+
+### Create Room
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/rooms \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your.jwt.token" \
+  -d '{
+    "property_id": 1,
+    "room_number": "A-101",
+    "room_type": "Deluxe Double",
+    "price_per_night": "120.00",
+    "capacity": 2,
+    "availability": true
+  }'
+```
+
+Response format:
+
+```json
+{
+  "success": true,
+  "message": "Room created successfully",
+  "data": {
+    "id": 1,
+    "property_id": 1,
+    "room_number": "A-101",
+    "room_type": "Deluxe Double",
+    "price_per_night": "120.00",
+    "capacity": 2,
+    "availability": true,
+    "status": "ACTIVE",
+    "created_at": "2026-06-04T12:00:00Z",
+    "updated_at": "2026-06-04T12:00:00Z"
+  }
+}
+```
+
+### List Rooms For A Property
+
+```bash
+curl http://127.0.0.1:8000/api/v1/properties/1/rooms
+```
+
+Response format:
+
+```json
+{
+  "success": true,
+  "message": "Property rooms retrieved successfully",
+  "data": [
+    {
+      "id": 1,
+      "property_id": 1,
+      "room_number": "A-101",
+      "room_type": "Deluxe Double",
+      "price_per_night": "120.00",
+      "capacity": 2,
+      "availability": true,
+      "status": "ACTIVE",
+      "created_at": "2026-06-04T12:00:00Z",
+      "updated_at": "2026-06-04T12:00:00Z"
     }
   ]
 }
@@ -417,13 +523,36 @@ Request with Authorization header
 -> property service performs create/update/delete
 ```
 
+## Phase 5 Learning Notes
+
+`app/models/room.py` defines the SQLAlchemy `Room` model. This is similar to a Spring Boot `@Entity`.
+
+`Room.property_id` is a foreign key to `Property.id`. This creates the database relationship between rooms and properties.
+
+`app/schemas/room.py` defines room request and response schemas. These are similar to DTOs.
+
+`app/services/room_service.py` contains room database logic such as validating the parent property, creating rooms, updating rooms, and soft-deleting rooms.
+
+`app/routers/rooms.py` contains room HTTP endpoints. It also adds `GET /api/v1/properties/{property_id}/rooms` because customers naturally browse rooms under a property.
+
+The room flow is:
+
+```text
+Request
+-> room router
+-> get_db dependency provides a database session
+-> room service validates property/room rules
+-> route returns the standard API response
+```
+
 ## Next Phase
 
-Phase 5 will add room management:
+Phase 6 will add booking management:
 
-- Room model
-- Room schemas
-- Room service
-- Room CRUD routes
-- Relationship between rooms and properties
+- Booking model
+- Booking schemas
+- Booking service
+- Booking endpoints
+- Date validation
+- Ownership checks
 - Admin-only protection later in Phase 8
